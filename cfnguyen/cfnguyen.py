@@ -1,8 +1,11 @@
 # ca phe nguyen
-
+from flask_sqlalchemy import SQLAlchemy
 from flask import Flask, app, request, jsonify, make_response, abort
 import requests
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] =  "postgresql://postgres:123@localhost/wordcount_dev"
+
+db = SQLAlchemy(app)
 
 bill_id = "bill123"
 PoPServer = "http://localhost:1234"
