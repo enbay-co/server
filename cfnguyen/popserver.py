@@ -1,11 +1,21 @@
 # Payment code server
 
-from flask import Flask, app, request, jsonify, make_response, abort
-import requests
+# from flask import Flask, app, request, jsonify, make_response, abort
+# import requests
+# from flask_sqlalchemy import SQLAlchemy
 
-app = Flask(__name__)
+# app = Flask(__name__)
+# app.config['SQLALCHEMY_DATABASE_URI'] =  "postgresql://postgres:123@localhost/wordcount_dev"
+# database = SQLAlchemy(app)                             # L4
+# db = database                                          # L5
+from flask import redirect, url_for, request, make_response, jsonify
+import popsetting as setting
+from popdb import PaymentCode
 
-PC_EMPRY="EMPRY" # chua thanh toan
+app = setting.app
+db = setting.db
+
+PC_EMPTY=0      # emptry
 PC_PAYED="PAYED" # da thanh toan
 PC_DELETED="DELETED" # host da xoa
 
@@ -24,15 +34,15 @@ class PC():
         }
     
 
-thePC1 = PC(code="22345678", status=PC_EMPRY, bill_id="bill123", merchant_url="http://localhost:5000")
-thePC2 = PC(code="22345679", status=PC_PAYED, bill_id="bill124", merchant_url="http://localhost:5000")
-thePC3 = PC(code="22345670", status=PC_DELETED, bill_id="bill125", merchant_url="http://localhost:5000")
+# thePC1 = PC(code="22345678", status=PC_EMPRY, bill_id="bill123", merchant_url="http://localhost:5000")
+# thePC2 = PC(code="22345679", status=PC_PAYED, bill_id="bill124", merchant_url="http://localhost:5000")
+# thePC3 = PC(code="22345670", status=PC_DELETED, bill_id="bill125", merchant_url="http://localhost:5000")
 
-PC_ALLOC = [
-    thePC1,
-    thePC2,
-    thePC3,
-]
+# PC_ALLOC = [
+#     thePC1,
+#     thePC2,
+#     thePC3,
+# ]
 
 def get_pc(pc):
     for i in PC_ALLOC:
@@ -46,12 +56,15 @@ def home():
 
 @app.route('/pc', methods=["POST"])
 def ppc():
-    """merchant create payment code """
-    form = request.get_json()
-    id = form.get("id")
-    data = form.get("data")
+    """merchant register payment code """
+    form = request.get_json()    
+    # data = form.get("data")
+    bill_id = form.get("bill_id")
+    price = form.get("price")    
+    callback_url = form.get("callback_url")
     
-    return make_response(jsonify(PC_ALLOC[0] ))
+    result = PaymentCode.alloc_pc(bill_id, price, callback_url)
+    return make_response(jsonify(result))
 
 
 @app.route('/pc/<string:pc>', methods=["GET"])
@@ -59,12 +72,12 @@ def get_ppc(pc):
     """ client scan bill
     1. return ppc status/bill info
     """
-    pc = get_pc(pc)
+    # pc = get_pc(pc)
     # merchant = {"id":"cfnguyen", "url": "http://localhost:5000"}
     # bill_of_pcc =  "bill123"
-    
-    if pc:
-        r = requests.get(pc["merchant_url"]+"/bill/"+ pc["bill_id"])           
+    code = PaymentCode.get_pc(pc)
+    if code:
+        r = requests.get(code)           
         res = {
             "pc": pc,
             "bill": r.json()
