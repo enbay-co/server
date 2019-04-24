@@ -80,7 +80,7 @@ def get_ppc(pc):
         r = requests.get(code)           
         res = {
             "pc": pc,
-            "bill": r.json()
+            "bill": r.json() 
         }
         return make_response(jsonify( res ))
 
