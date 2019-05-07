@@ -35,5 +35,13 @@ def bill(id):
         return make_response(jsonify(bill_data))
     abort(404)
 
+@app.route('/bill/<string:id>', methods=["POST"])
+def paybill(id):
+    """ get bill id
+    """    
+    if id == bill_id:        
+        return make_response(jsonify(bill_data))
+    abort(404)
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', debug=True)

@@ -8,16 +8,17 @@
 # app.config['SQLALCHEMY_DATABASE_URI'] =  "postgresql://postgres:123@localhost/wordcount_dev"
 # database = SQLAlchemy(app)                             # L4
 # db = database                                          # L5
-from flask import redirect, url_for, request, make_response, jsonify
+from flask import redirect, url_for, request, make_response, jsonify, abort
 import popsetting as setting
 from popdb import PaymentCode
-
+import requests
 app = setting.app
 db = setting.db
 
-PC_EMPTY=0      # emptry
-PC_PAYED="PAYED" # da thanh toan
-PC_DELETED="DELETED" # host da xoa
+PC_EMPTY    = 0      # emptry
+PC_WAIT     = 1      # emptry
+PC_PAYED    = 2 # "PAYED" # da thanh toan
+PC_DELETED  = 3 # "DELETED" # host da xoa
 
 class PC():
     def __init__(self, code, status, bill_id, merchant_url):
@@ -44,18 +45,14 @@ class PC():
 #     thePC3,
 # ]
 
-def get_pc(pc):
-    for i in PC_ALLOC:
-        if i.code == pc:
-            return i
-    return None
+
             
 @app.route('/')
 def home():
     return "Pop"
 
 @app.route('/pc', methods=["POST"])
-def ppc():
+def issue_pc():
     """merchant register payment code """
     form = request.get_json()    
     # data = form.get("data")
@@ -75,11 +72,13 @@ def get_ppc(pc):
     # pc = get_pc(pc)
     # merchant = {"id":"cfnguyen", "url": "http://localhost:5000"}
     # bill_of_pcc =  "bill123"
-    code = PaymentCode.get_pc(pc)
-    if code:
-        r = requests.get(code)           
+    pc = PaymentCode.get_pc(pc)
+    if pc:
+        url = pc[3]
+        billid = pc[1]
+        r = requests.get(url+"/"+billid)           
         res = {
-            "pc": pc,
+            "pc": str(pc),
             "bill": r.json() 
         }
         return make_response(jsonify( res ))
@@ -91,16 +90,23 @@ def payment() :
     """ client payment for bill """
     # check 
     form = request.get_json()
-    code = form.get("code")    
+    code = form.get("code")    # payment link code
     bill_id = form.get("bill_id")    
     
-    pc = get_pc(code)
-    if pc:
+    plo = PaymentCode.get(code)
+    if plo:
         # check all here
-        if pc.status == PC_EMPRY:
-            return jsonify( pc.to_json() )
+        if plo.status == PC_WAIT:
+            # notify to merchant
+            url = plo.callback_url
+            r = requests.post(url+"/"+bill_id, data={})
+            if r.status_code == 200:
+                plo.setStatus(PC_PAYED)
+                return jsonify( plo.to_json() )
+            else:
+                make_response(jsonify({"res": r.text}), 406)
         else:
-            return make_response(jsonify(pc.to_json()), 406)
+            return make_response(jsonify(plo.to_json()), 406)
     
     return abort(404)
     
